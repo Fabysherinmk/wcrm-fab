@@ -1,0 +1,283 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-display);
+  /* Re-point Tailwind's `slate-*` scale at the active theme's neutral
+     ramp (`--n-*`, defined per theme below). The whole app uses
+     `slate-*` utilities directly for surfaces/text/borders, so this one
+     indirection retints every neutral — warm for Clay, green-grey for
+     Pine, blue-grey for Indigo — without touching a single component. */
+  --color-slate-50: var(--n-50);
+  --color-slate-100: var(--n-100);
+  --color-slate-200: var(--n-200);
+  --color-slate-300: var(--n-300);
+  --color-slate-400: var(--n-400);
+  --color-slate-500: var(--n-500);
+  --color-slate-600: var(--n-600);
+  --color-slate-700: var(--n-700);
+  --color-slate-800: var(--n-800);
+  --color-slate-900: var(--n-900);
+  --color-slate-950: var(--n-950);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* ============================================================
+ * COLOR THEMES
+ *
+ * Three deliberately distinct dark themes — not one grey with the
+ * accent hue rotated. Each owns BOTH its accent and its neutral
+ * temperature:
+ *   • Sky    — cool blue-grey + light azure (the default)
+ *   • Pine   — green-grey + deep spruce (a calm nod to messaging)
+ *   • Indigo — blue-grey + true indigo (clean, product-y B2B)
+ *
+ * Each block defines a full neutral ramp (`--n-50` … `--n-950`) which
+ * Tailwind's `slate-*` utilities are mapped onto (see the @theme block
+ * above), plus the semantic tokens layered on top. `:root` mirrors
+ * Sky so first paint is correct before JS runs.
+ *
+ * The `--primary-*` extras (hover / soft / soft-2) drive hovered
+ * primary buttons and tinted-primary surfaces (active nav pill, badges).
+ *
+ * Switched at runtime via `document.documentElement.dataset.theme`
+ * — see ThemeProvider + the inline boot script in layout.tsx.
+ * ============================================================ */
+
+:root,
+html[data-theme="sky"] {
+  /* cool blue-grey neutral ramp (hue ~250) */
+  --n-50: oklch(0.985 0.004 250);
+  --n-100: oklch(0.967 0.006 250);
+  --n-200: oklch(0.925 0.009 250);
+  --n-300: oklch(0.868 0.012 250);
+  --n-400: oklch(0.705 0.014 250);
+  --n-500: oklch(0.556 0.014 250);
+  --n-600: oklch(0.449 0.014 250);
+  --n-700: oklch(0.372 0.013 250);
+  --n-800: oklch(0.279 0.012 250);
+  --n-900: oklch(0.211 0.011 250);
+  --n-950: oklch(0.146 0.01 250);
+
+  --background: oklch(0.155 0.011 250);
+  --foreground: oklch(0.97 0.005 250);
+  --card: oklch(0.2 0.011 250);
+  --card-foreground: oklch(0.97 0.005 250);
+  --popover: oklch(0.2 0.011 250);
+  --popover-foreground: oklch(0.97 0.005 250);
+  --primary: oklch(0.72 0.13 232);
+  --primary-foreground: oklch(0.2 0.04 250);
+  --primary-hover: oklch(0.77 0.12 232);
+  --primary-soft: oklch(0.72 0.13 232 / 0.12);
+  --primary-soft-2: oklch(0.72 0.13 232 / 0.2);
+  --secondary: oklch(0.245 0.012 250);
+  --secondary-foreground: oklch(0.97 0.005 250);
+  --muted: oklch(0.245 0.012 250);
+  --muted-foreground: oklch(0.705 0.013 250);
+  --accent: oklch(0.245 0.012 250);
+  --accent-foreground: oklch(0.97 0.005 250);
+  --destructive: oklch(0.62 0.21 25);
+  --border: oklch(0.3 0.012 250);
+  --input: oklch(0.3 0.012 250);
+  --ring: oklch(0.72 0.13 232);
+  --chart-1: oklch(0.72 0.13 232);
+  --chart-2: oklch(0.78 0.11 200);
+  --chart-3: oklch(0.7 0.12 270);
+  --chart-4: oklch(0.62 0.12 240);
+  --chart-5: oklch(0.6 0.03 250);
+  --radius: 0.5rem;
+  --sidebar: oklch(0.18 0.011 250);
+  --sidebar-foreground: oklch(0.97 0.005 250);
+  --sidebar-primary: oklch(0.72 0.13 232);
+  --sidebar-primary-foreground: oklch(0.2 0.04 250);
+  --sidebar-accent: oklch(0.245 0.012 250);
+  --sidebar-accent-foreground: oklch(0.97 0.005 250);
+  --sidebar-border: oklch(0.3 0.012 250);
+  --sidebar-ring: oklch(0.72 0.13 232);
+}
+
+html[data-theme="pine"] {
+  /* green-grey neutral ramp (hue ~160) */
+  --n-50: oklch(0.985 0.005 160);
+  --n-100: oklch(0.967 0.007 160);
+  --n-200: oklch(0.925 0.009 160);
+  --n-300: oklch(0.868 0.011 160);
+  --n-400: oklch(0.705 0.012 160);
+  --n-500: oklch(0.556 0.012 160);
+  --n-600: oklch(0.449 0.012 160);
+  --n-700: oklch(0.372 0.012 160);
+  --n-800: oklch(0.279 0.011 160);
+  --n-900: oklch(0.211 0.011 160);
+  --n-950: oklch(0.146 0.01 160);
+
+  --background: oklch(0.165 0.011 160);
+  --foreground: oklch(0.97 0.005 160);
+  --card: oklch(0.205 0.011 160);
+  --card-foreground: oklch(0.97 0.005 160);
+  --popover: oklch(0.205 0.011 160);
+  --popover-foreground: oklch(0.97 0.005 160);
+  --primary: oklch(0.62 0.115 162);
+  --primary-foreground: oklch(0.16 0.02 162);
+  --primary-hover: oklch(0.68 0.105 162);
+  --primary-soft: oklch(0.62 0.115 162 / 0.12);
+  --primary-soft-2: oklch(0.62 0.115 162 / 0.2);
+  --secondary: oklch(0.245 0.011 160);
+  --secondary-foreground: oklch(0.97 0.005 160);
+  --muted: oklch(0.245 0.011 160);
+  --muted-foreground: oklch(0.705 0.012 160);
+  --accent: oklch(0.245 0.011 160);
+  --accent-foreground: oklch(0.97 0.005 160);
+  --destructive: oklch(0.62 0.21 25);
+  --border: oklch(0.3 0.011 160);
+  --input: oklch(0.3 0.011 160);
+  --ring: oklch(0.62 0.115 162);
+  --chart-1: oklch(0.62 0.115 162);
+  --chart-2: oklch(0.72 0.1 200);
+  --chart-3: oklch(0.78 0.12 110);
+  --chart-4: oklch(0.55 0.09 150);
+  --chart-5: oklch(0.62 0.02 160);
+  --sidebar: oklch(0.185 0.011 160);
+  --sidebar-foreground: oklch(0.97 0.005 160);
+  --sidebar-primary: oklch(0.62 0.115 162);
+  --sidebar-primary-foreground: oklch(0.16 0.02 162);
+  --sidebar-accent: oklch(0.245 0.011 160);
+  --sidebar-accent-foreground: oklch(0.97 0.005 160);
+  --sidebar-border: oklch(0.3 0.011 160);
+  --sidebar-ring: oklch(0.62 0.115 162);
+}
+
+html[data-theme="indigo"] {
+  /* blue-grey neutral ramp (hue ~255) */
+  --n-50: oklch(0.985 0.005 255);
+  --n-100: oklch(0.967 0.008 255);
+  --n-200: oklch(0.925 0.011 255);
+  --n-300: oklch(0.868 0.014 255);
+  --n-400: oklch(0.705 0.016 255);
+  --n-500: oklch(0.556 0.016 255);
+  --n-600: oklch(0.449 0.016 255);
+  --n-700: oklch(0.372 0.015 255);
+  --n-800: oklch(0.279 0.014 255);
+  --n-900: oklch(0.211 0.013 255);
+  --n-950: oklch(0.146 0.012 255);
+
+  --background: oklch(0.165 0.013 255);
+  --foreground: oklch(0.97 0.005 255);
+  --card: oklch(0.205 0.013 255);
+  --card-foreground: oklch(0.97 0.005 255);
+  --popover: oklch(0.205 0.013 255);
+  --popover-foreground: oklch(0.97 0.005 255);
+  --primary: oklch(0.585 0.16 252);
+  --primary-foreground: oklch(0.985 0 0);
+  --primary-hover: oklch(0.65 0.15 252);
+  --primary-soft: oklch(0.585 0.16 252 / 0.12);
+  --primary-soft-2: oklch(0.585 0.16 252 / 0.2);
+  --secondary: oklch(0.245 0.013 255);
+  --secondary-foreground: oklch(0.97 0.005 255);
+  --muted: oklch(0.245 0.013 255);
+  --muted-foreground: oklch(0.705 0.014 255);
+  --accent: oklch(0.245 0.013 255);
+  --accent-foreground: oklch(0.97 0.005 255);
+  --destructive: oklch(0.62 0.21 25);
+  --border: oklch(0.3 0.013 255);
+  --input: oklch(0.3 0.013 255);
+  --ring: oklch(0.585 0.16 252);
+  --chart-1: oklch(0.585 0.16 252);
+  --chart-2: oklch(0.7 0.13 220);
+  --chart-3: oklch(0.75 0.11 180);
+  --chart-4: oklch(0.55 0.13 270);
+  --chart-5: oklch(0.62 0.03 255);
+  --sidebar: oklch(0.185 0.013 255);
+  --sidebar-foreground: oklch(0.97 0.005 255);
+  --sidebar-primary: oklch(0.585 0.16 252);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.245 0.013 255);
+  --sidebar-accent-foreground: oklch(0.97 0.005 255);
+  --sidebar-border: oklch(0.3 0.013 255);
+  --sidebar-ring: oklch(0.585 0.16 252);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* Headings render in the display face (Bricolage Grotesque) with
+     slightly tightened tracking — this is what stops the UI reading as
+     "Inter everywhere". Applied globally so individual components don't
+     each have to opt in with a `font-heading` class. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display), var(--font-sans);
+    letter-spacing: -0.015em;
+  }
+}
+
+@layer components {
+  /* Soft, off-centre accent wash for full-bleed auth screens — gives
+     the login/signup pages a crafted backdrop instead of a flat slate
+     fill. Built from the active theme's primary so it recolours with
+     the theme. */
+  .auth-backdrop {
+    background-color: var(--background);
+    background-image:
+      radial-gradient(
+        42rem 32rem at 12% -8%,
+        var(--primary-soft),
+        transparent 60%
+      ),
+      radial-gradient(
+        38rem 30rem at 108% 112%,
+        color-mix(in oklch, var(--primary) 7%, transparent),
+        transparent 55%
+      );
+  }
+}

@@ -1,0 +1,7 @@
+export const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ??
+  "https://rniswkgwdnswflrjrmun.supabase.co";
+
+export const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJuaXN3a2d3ZG5zd2ZscmpybXVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMDE5NjYsImV4cCI6MjA5NjY3Nzk2Nn0.Ocsfm3e3u7qtOPacAoYw-pXFF5svYtEm_j4vE78NGUM";
