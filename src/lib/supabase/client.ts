@@ -8,6 +8,12 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config'
 let browserClient: SupabaseClient | undefined
 
 export function createClient() {
+  if (typeof window === 'undefined') {
+    throw new Error(
+      'Supabase browser client can only be created in the browser.'
+    )
+  }
+
   if (browserClient) return browserClient
 
   browserClient = createBrowserClient(
