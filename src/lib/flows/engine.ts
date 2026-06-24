@@ -753,6 +753,16 @@ async function advanceFromNodeKey(
       if (typeof customerLocStr === "string" && customerLocStr.length > 0 && outlets.length > 0) {
         let coords = extractCoordinates(customerLocStr);
         if (!coords) {
+          if (
+            customerLocStr.includes("google.com/maps") ||
+            customerLocStr.includes("maps.google") ||
+            customerLocStr.includes("maps.app.goo.gl") ||
+            customerLocStr.includes("goo.gl/maps")
+          ) {
+            coords = await extractCoordinatesFromGoogleMapsUrl(customerLocStr);
+          }
+        }
+        if (!coords) {
           coords = await geocodeTextAddress(customerLocStr);
         }
 
@@ -1264,4 +1274,43 @@ export async function geocodeTextAddress(address: string): Promise<{ lat: number
     return null;
   }
 }
+
+export async function extractCoordinatesFromGoogleMapsUrl(urlStr: string): Promise<{ lat: number; lng: number } | null> {
+  if (!urlStr) return null;
+  try {
+    let targetUrl = urlStr.trim();
+    
+    if (targetUrl.includes("maps.app.goo.gl") || targetUrl.includes("goo.gl/maps")) {
+      const response = await fetch(targetUrl, {
+        method: "HEAD",
+        redirect: "follow",
+      });
+      targetUrl = response.url;
+    }
+
+    const pathMatch = targetUrl.match(/@([-\d.]+),([-\d.]+)/);
+    if (pathMatch) {
+      const lat = parseFloat(pathMatch[1]);
+      const lng = parseFloat(pathMatch[2]);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        return { lat, lng };
+      }
+    }
+
+    const queryMatch = targetUrl.match(/[?&](query|q)=([-\d.]+),([-\d.]+)/);
+    if (queryMatch) {
+      const lat = parseFloat(queryMatch[2]);
+      const lng = parseFloat(queryMatch[3]);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        return { lat, lng };
+      }
+    }
+
+    return null;
+  } catch (err) {
+    console.error("[flows] extractCoordinatesFromGoogleMapsUrl error:", err);
+    return null;
+  }
+}
+
 

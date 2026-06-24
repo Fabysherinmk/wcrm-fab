@@ -9,6 +9,7 @@ import {
   extractCoordinates,
   calculateHaversineDistance,
   geocodeTextAddress,
+  extractCoordinatesFromGoogleMapsUrl,
 } from "./engine";
 
 describe("matchReplyId", () => {
@@ -415,6 +416,50 @@ describe("nearest_outlet helpers", () => {
     it("returns null for empty address text", async () => {
       const result = await geocodeTextAddress("   ");
       expect(result).toBeNull();
+    });
+  });
+
+  describe("extractCoordinatesFromGoogleMapsUrl", () => {
+    it("extracts coordinates directly from path of long Google Maps URL", async () => {
+      const url = "https://www.google.com/maps/place/Kochi,+Kerala/@9.9674277,76.2454436,12z";
+      const result = await extractCoordinatesFromGoogleMapsUrl(url);
+      expect(result).toEqual({ lat: 9.9674277, lng: 76.2454436 });
+    });
+
+    it("extracts coordinates from query parameter of search URL", async () => {
+      const url = "https://www.google.com/maps/search/?api=1&query=10.0236,76.3115";
+      const result = await extractCoordinatesFromGoogleMapsUrl(url);
+      expect(result).toEqual({ lat: 10.0236, lng: 76.3115 });
+    });
+
+    it("extracts coordinates from query 'q' parameter", async () => {
+      const url = "https://maps.google.com/?q=9.9816,76.2999";
+      const result = await extractCoordinatesFromGoogleMapsUrl(url);
+      expect(result).toEqual({ lat: 9.9816, lng: 76.2999 });
+    });
+
+    it("resolves shortened maps.app.goo.gl redirect and parses coordinates", async () => {
+      const mockFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+        url: "https://www.google.com/maps/place/Aluva,+Kerala/@10.1076,76.3480,12z",
+      } as Response);
+
+      const result = await extractCoordinatesFromGoogleMapsUrl("https://maps.app.goo.gl/shortId");
+      expect(result).toEqual({ lat: 10.1076, lng: 76.3480 });
+      expect(mockFetch).toHaveBeenCalledWith("https://maps.app.goo.gl/shortId", {
+        method: "HEAD",
+        redirect: "follow",
+      });
+      mockFetch.mockRestore();
+    });
+
+    it("returns null when no coordinates pattern matches", async () => {
+      const result = await extractCoordinatesFromGoogleMapsUrl("https://google.com/maps/about");
+      expect(result).toBeNull();
+    });
+
+    it("returns null for non-URL strings or empty inputs", async () => {
+      expect(await extractCoordinatesFromGoogleMapsUrl("")).toBeNull();
+      expect(await extractCoordinatesFromGoogleMapsUrl("   ")).toBeNull();
     });
   });
 });
