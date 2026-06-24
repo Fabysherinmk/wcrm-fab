@@ -188,6 +188,16 @@ export function NodeConfigForm({
         />
       );
 
+    case "nearest_outlet":
+      return (
+        <NearestOutletForm
+          cfg={cfg as NearestOutletCfg}
+          allNodes={allNodes}
+          currentKey={node.node_key}
+          onUpdateConfig={onUpdateConfig}
+        />
+      );
+
     case "handoff":
       return (
         <TextRow
@@ -1084,6 +1094,193 @@ function SendMediaForm({
         currentKey={currentKey}
         onChange={(v) => onUpdateConfig({ next_node_key: v })}
         label="After sending, advance to"
+      />
+    </>
+  );
+}
+
+// ============================================================
+// nearest_outlet
+// ============================================================
+
+interface NearestOutletCfg {
+  customer_location_var?: string;
+  result_var?: string;
+  outlets?: Array<{ name: string; latitude: number; longitude: number }>;
+  next_node_key?: string;
+}
+
+function NearestOutletForm({
+  cfg,
+  allNodes,
+  currentKey,
+  onUpdateConfig,
+}: {
+  cfg: NearestOutletCfg;
+  allNodes: BuilderNode[];
+  currentKey: string;
+  onUpdateConfig: (patch: Record<string, unknown>) => void;
+}) {
+  const outlets = cfg.outlets ?? [];
+
+  const updateOutlet = (
+    idx: number,
+    patch: Partial<NonNullable<NearestOutletCfg["outlets"]>[number]>,
+  ) => {
+    onUpdateConfig({
+      outlets: outlets.map((o, i) => (i === idx ? { ...o, ...patch } : o)),
+    });
+  };
+
+  const addOutlet = () => {
+    onUpdateConfig({
+      outlets: [
+        ...outlets,
+        { name: `Outlet ${outlets.length + 1}`, latitude: 0, longitude: 0 },
+      ],
+    });
+  };
+
+  const removeOutlet = (idx: number) => {
+    onUpdateConfig({
+      outlets: outlets.filter((_, i) => i !== idx),
+    });
+  };
+
+  return (
+    <>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-xs text-slate-400">
+            Customer location variable
+          </label>
+          <Input
+            value={cfg.customer_location_var ?? ""}
+            onChange={(e) =>
+              onUpdateConfig({
+                customer_location_var: e.target.value.replace(
+                  /[^a-zA-Z0-9_]/g,
+                  "",
+                ),
+              })
+            }
+            placeholder="e.g. customer_location"
+            className="bg-slate-800 font-mono text-xs"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-slate-400">
+            Result variable key (where the nearest outlet name is stored)
+          </label>
+          <Input
+            value={cfg.result_var ?? ""}
+            onChange={(e) =>
+              onUpdateConfig({
+                result_var: e.target.value.replace(/[^a-zA-Z0-9_]/g, ""),
+              })
+            }
+            placeholder="e.g. nearest_outlet"
+            className="bg-slate-800 font-mono text-xs"
+          />
+        </div>
+      </div>
+
+      <div className="mt-2">
+        <div className="mb-2 flex items-center justify-between">
+          <label className="text-xs text-slate-400">
+            Outlets &amp; Locations (Calculated in backend)
+          </label>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={addOutlet}
+            className="h-7 text-xs border-slate-700 bg-slate-800 hover:bg-slate-700"
+          >
+            <Plus className="h-3 w-3 mr-1" />
+            Add Outlet
+          </Button>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {outlets.map((o, i) => (
+            <div
+              key={i}
+              className="flex flex-col gap-2 rounded-md border border-slate-800 bg-slate-800/40 p-3 relative"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  Outlet #{i + 1}
+                </span>
+                {outlets.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeOutlet(i)}
+                    className="h-6 w-6 p-0 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                <div>
+                  <label className="mb-0.5 block text-[10px] text-slate-500">
+                    Name
+                  </label>
+                  <Input
+                    value={o.name}
+                    onChange={(e) => updateOutlet(i, { name: e.target.value })}
+                    placeholder="e.g. Outlet A"
+                    className="bg-slate-800 text-xs h-8"
+                  />
+                </div>
+                <div>
+                  <label className="mb-0.5 block text-[10px] text-slate-500">
+                    Latitude
+                  </label>
+                  <Input
+                    type="number"
+                    step="any"
+                    value={o.latitude}
+                    onChange={(e) =>
+                      updateOutlet(i, {
+                        latitude: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    placeholder="e.g. 24.123"
+                    className="bg-slate-800 text-xs h-8"
+                  />
+                </div>
+                <div>
+                  <label className="mb-0.5 block text-[10px] text-slate-500">
+                    Longitude
+                  </label>
+                  <Input
+                    type="number"
+                    step="any"
+                    value={o.longitude}
+                    onChange={(e) =>
+                      updateOutlet(i, {
+                        longitude: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    placeholder="e.g. 45.456"
+                    className="bg-slate-800 text-xs h-8"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <NextNodeRow
+        value={cfg.next_node_key ?? ""}
+        allNodes={allNodes}
+        currentKey={currentKey}
+        onChange={(v) => onUpdateConfig({ next_node_key: v })}
+        label="Then, advance to"
       />
     </>
   );

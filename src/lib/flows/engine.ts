@@ -116,6 +116,7 @@ export function isAutoAdvancing(node_type: string): boolean {
     node_type === "send_message" ||
     node_type === "send_media" ||
     node_type === "condition" ||
+    node_type === "nearest_outlet" ||
     node_type === "set_tag"
   );
 }
@@ -736,6 +737,86 @@ async function advanceFromNodeKey(
       currentKey = cfg.next_node_key;
       continue;
     }
+    if (node.node_type === "nearest_outlet") {
+      const cfg = node.config as {
+        customer_location_var?: string;
+        result_var?: string;
+        outlets?: Array<{ name: string; latitude: number; longitude: number }>;
+        next_node_key?: string;
+      };
+
+      const locationVar = cfg.customer_location_var ?? "customer_location";
+      const resultVar = cfg.result_var ?? "nearest_outlet";
+      const outlets = cfg.outlets ?? [];
+
+      const customerLocStr = run.vars[locationVar];
+      if (typeof customerLocStr === "string" && customerLocStr.length > 0 && outlets.length > 0) {
+        let coords = extractCoordinates(customerLocStr);
+        if (!coords) {
+          coords = await geocodeTextAddress(customerLocStr);
+        }
+
+        if (coords) {
+          let nearestOutlet = outlets[0];
+          let minDistance = calculateHaversineDistance(
+            coords.lat,
+            coords.lng,
+            nearestOutlet.latitude,
+            nearestOutlet.longitude
+          );
+
+          for (let i = 1; i < outlets.length; i++) {
+            const dist = calculateHaversineDistance(
+              coords.lat,
+              coords.lng,
+              outlets[i].latitude,
+              outlets[i].longitude
+            );
+            if (dist < minDistance) {
+              minDistance = dist;
+              nearestOutlet = outlets[i];
+            }
+          }
+
+          const newVars = {
+            ...run.vars,
+            [resultVar]: nearestOutlet.name,
+            [`${resultVar}_latitude`]: nearestOutlet.latitude,
+            [`${resultVar}_longitude`]: nearestOutlet.longitude,
+            [`${resultVar}_distance_km`]: parseFloat(minDistance.toFixed(2)),
+          };
+
+          const { error: updateErr } = await db
+            .from("flow_runs")
+            .update({ vars: newVars })
+            .eq("id", run.id);
+
+          if (!updateErr) {
+            run.vars = newVars;
+            await logEvent(db, run.id, "node_entered", node.node_key, {
+              nearest_outlet: nearestOutlet.name,
+              distance_km: parseFloat(minDistance.toFixed(2)),
+            });
+          } else {
+            console.error("[flows] nearest_outlet db update failed:", updateErr.message);
+          }
+        } else {
+          await logEvent(db, run.id, "error", node.node_key, {
+            reason: "unable_to_geocode_or_parse_location",
+            raw_value: customerLocStr,
+          });
+        }
+      } else {
+        await logEvent(db, run.id, "error", node.node_key, {
+          reason: "missing_location_var_or_outlets",
+          has_location_var: typeof customerLocStr === "string",
+          outlets_count: outlets.length,
+        });
+      }
+
+      currentKey = cfg.next_node_key ?? null;
+      continue;
+    }
     if (node.node_type === "send_buttons") {
       await sendButtonsAndSuspend(db, run, node);
       // Persist the new current_node_key via optimistic UPDATE.
@@ -1120,3 +1201,67 @@ async function startNewRun(
     outcome: outcome.outcome === "advanced" ? "started" : outcome.outcome,
   };
 }
+
+export function extractCoordinates(locationStr: string): { lat: number; lng: number } | null {
+  if (!locationStr) return null;
+  // Format is typically "Name - Address - Latitude,Longitude" or just "Latitude,Longitude"
+  const parts = locationStr.split(" - ");
+  const geoPart = parts[parts.length - 1] || "";
+  const coords = geoPart.split(",");
+  if (coords.length === 2) {
+    const lat = parseFloat(coords[0].trim());
+    const lng = parseFloat(coords[1].trim());
+    if (!isNaN(lat) && !isNaN(lng)) {
+      return { lat, lng };
+    }
+  }
+  return null;
+}
+
+export function calculateHaversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371; // Earth radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+export async function geocodeTextAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  if (!address || address.trim().length === 0) return null;
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "WCRM-Delivery-App/1.0",
+      },
+    });
+    if (!response.ok) {
+      console.error(`[flows] geocodeTextAddress failed with status ${response.status}`);
+      return null;
+    }
+    const data = await response.json();
+    if (Array.isArray(data) && data.length > 0) {
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        return { lat, lng };
+      }
+    }
+    return null;
+  } catch (err) {
+    console.error("[flows] geocodeTextAddress error:", err);
+    return null;
+  }
+}
+

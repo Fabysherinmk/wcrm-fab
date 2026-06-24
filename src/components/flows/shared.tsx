@@ -22,6 +22,7 @@ import {
   Inbox,
   ListChecks,
   ListPlus,
+  MapPin,
   MessageCircle,
   Paperclip,
   PlayCircle,
@@ -48,6 +49,7 @@ export type NodeType =
   | "condition"
   | "set_tag"
   | "handoff"
+  | "nearest_outlet"
   | "end";
 
 export interface BuilderNode {
@@ -108,6 +110,11 @@ export const NODE_META: Record<
   handoff: {
     label: "Handoff to agent",
     icon: UserPlus,
+    color: "text-amber-400",
+  },
+  nearest_outlet: {
+    label: "Nearest outlet",
+    icon: MapPin,
     color: "text-amber-400",
   },
   end: { label: "End", icon: Flag, color: "text-slate-400" },
@@ -250,6 +257,12 @@ export function summarizeNode(node: BuilderNode): string | null {
     case "handoff": {
       const note = typeof cfg.note === "string" ? cfg.note : "";
       return note.length > 0 ? truncate(note) : null;
+    }
+    case "nearest_outlet": {
+      const varKey = typeof cfg.customer_location_var === "string" ? cfg.customer_location_var : "";
+      const outlets = Array.isArray(cfg.outlets) ? cfg.outlets : [];
+      const resultVar = typeof cfg.result_var === "string" ? cfg.result_var : "";
+      return `Find closest from ${outlets.length} outlet(s) using vars.${varKey} → vars.${resultVar}`;
     }
   }
 }

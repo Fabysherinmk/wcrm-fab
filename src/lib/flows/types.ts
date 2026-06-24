@@ -173,6 +173,17 @@ export interface SetTagNodeConfig {
   next_node_key: string;
 }
 
+export interface NearestOutletNodeConfig {
+  customer_location_var: string;
+  result_var: string;
+  outlets: Array<{
+    name: string;
+    latitude: number;
+    longitude: number;
+  }>;
+  next_node_key: string;
+}
+
 // Terminal nodes carry no config — they just stop the run.
 export type EndNodeConfig = Record<string, never>;
 
@@ -194,6 +205,7 @@ export type FlowNodeConfig =
   | { node_type: "condition"; config: ConditionNodeConfig }
   | { node_type: "set_tag"; config: SetTagNodeConfig }
   | { node_type: "handoff"; config: HandoffNodeConfig }
+  | { node_type: "nearest_outlet"; config: NearestOutletNodeConfig }
   | { node_type: "end"; config: EndNodeConfig };
 
 export type FlowNodeType = FlowNodeConfig["node_type"];

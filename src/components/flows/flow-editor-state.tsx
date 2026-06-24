@@ -182,6 +182,15 @@ export function defaultConfigFor(type: NodeType): Record<string, unknown> {
       };
     case "set_tag":
       return { mode: "add", tag_id: "", next_node_key: "" };
+    case "nearest_outlet":
+      return {
+        customer_location_var: "customer_location",
+        result_var: "nearest_outlet",
+        outlets: [
+          { name: "Outlet 1", latitude: 0, longitude: 0 }
+        ],
+        next_node_key: "",
+      };
     case "handoff":
       return { note: "" };
     case "end":

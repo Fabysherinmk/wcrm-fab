@@ -701,6 +701,101 @@ function validateNode(
       break;
     }
 
+    case "nearest_outlet": {
+      const cfg = node.config as {
+        customer_location_var?: string;
+        result_var?: string;
+        outlets?: Array<{ name?: string; latitude?: number; longitude?: number }>;
+        next_node_key?: string;
+      };
+      if (!cfg.customer_location_var?.trim()) {
+        issues.push({
+          severity: "error",
+          scope: "node",
+          node_key: node.node_key,
+          field: "customer_location_var",
+          message: "Nearest-outlet node needs a customer location variable name.",
+        });
+      }
+      if (!cfg.result_var?.trim()) {
+        issues.push({
+          severity: "error",
+          scope: "node",
+          node_key: node.node_key,
+          field: "result_var",
+          message: "Nearest-outlet node needs a variable to store the closest outlet name.",
+        });
+      } else if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(cfg.result_var)) {
+        issues.push({
+          severity: "error",
+          scope: "node",
+          node_key: node.node_key,
+          field: "result_var",
+          message: `result_var "${cfg.result_var}" must be alphanumeric+underscore and start with a letter or underscore.`,
+        });
+      }
+
+      const outlets = cfg.outlets ?? [];
+      if (outlets.length === 0) {
+        issues.push({
+          severity: "error",
+          scope: "node",
+          node_key: node.node_key,
+          field: "outlets",
+          message: "Nearest-outlet node needs at least one outlet location configured.",
+        });
+      }
+
+      outlets.forEach((o, i) => {
+        if (!o.name?.trim()) {
+          issues.push({
+            severity: "error",
+            scope: "node",
+            node_key: node.node_key,
+            field: `outlets.${i}.name`,
+            message: `Outlet ${i + 1} needs a name.`,
+          });
+        }
+        if (o.latitude === undefined || isNaN(Number(o.latitude)) || Number(o.latitude) < -90 || Number(o.latitude) > 90) {
+          issues.push({
+            severity: "error",
+            scope: "node",
+            node_key: node.node_key,
+            field: `outlets.${i}.latitude`,
+            message: `Outlet ${i + 1} needs a valid latitude (-90 to 90).`,
+          });
+        }
+        if (o.longitude === undefined || isNaN(Number(o.longitude)) || Number(o.longitude) < -180 || Number(o.longitude) > 180) {
+          issues.push({
+            severity: "error",
+            scope: "node",
+            node_key: node.node_key,
+            field: `outlets.${i}.longitude`,
+            message: `Outlet ${i + 1} needs a valid longitude (-180 to 180).`,
+          });
+        }
+      });
+
+      if (!cfg.next_node_key) {
+        issues.push({
+          severity: "error",
+          scope: "node",
+          node_key: node.node_key,
+          field: "next_node_key",
+          message: "Nearest-outlet node must point to a next node.",
+        });
+      } else if (!knownKeys.has(cfg.next_node_key)) {
+        issues.push({
+          severity: "error",
+          scope: "node",
+          node_key: node.node_key,
+          field: "next_node_key",
+          message: `Nearest-outlet points to non-existent node "${cfg.next_node_key}".`,
+        });
+      }
+      break;
+    }
+
     case "handoff":
     case "end":
       // Terminal nodes have no outgoing edges; nothing to validate
@@ -751,6 +846,7 @@ function outgoingEdges(node: NodeInput): string[] {
     case "send_message":
     case "send_media":
     case "collect_input":
+    case "nearest_outlet":
     case "set_tag": {
       const cfg = node.config as { next_node_key?: string };
       return cfg.next_node_key ? [cfg.next_node_key] : [];

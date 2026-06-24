@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   matchReplyId,
   matchesKeywordTrigger,
@@ -6,6 +6,9 @@ import {
   isSuspending,
   isTerminal,
   evaluateConditionPredicate,
+  extractCoordinates,
+  calculateHaversineDistance,
+  geocodeTextAddress,
 } from "./engine";
 
 describe("matchReplyId", () => {
@@ -144,11 +147,12 @@ describe("matchesKeywordTrigger", () => {
 });
 
 describe("node classification helpers", () => {
-  it("isAutoAdvancing covers start + send_message + send_media + condition + set_tag", () => {
+  it("isAutoAdvancing covers start + send_message + send_media + condition + nearest_outlet + set_tag", () => {
     expect(isAutoAdvancing("start")).toBe(true);
     expect(isAutoAdvancing("send_message")).toBe(true);
     expect(isAutoAdvancing("send_media")).toBe(true);
     expect(isAutoAdvancing("condition")).toBe(true);
+    expect(isAutoAdvancing("nearest_outlet")).toBe(true);
     expect(isAutoAdvancing("set_tag")).toBe(true);
     expect(isAutoAdvancing("send_buttons")).toBe(false);
     expect(isAutoAdvancing("send_list")).toBe(false);
@@ -187,6 +191,7 @@ describe("node classification helpers", () => {
       "collect_input",
       "condition",
       "set_tag",
+      "nearest_outlet",
       "handoff",
       "end",
     ];
@@ -295,5 +300,121 @@ describe("evaluateConditionPredicate", () => {
         configValue: "anything",
       }),
     ).toBe(false);
+  });
+});
+
+describe("nearest_outlet helpers", () => {
+  describe("extractCoordinates", () => {
+    it("parses pure coordinates", () => {
+      expect(extractCoordinates("24.12345,45.67890")).toEqual({
+        lat: 24.12345,
+        lng: 45.67890,
+      });
+    });
+
+    it("parses name, address, coordinates formatted strings", () => {
+      expect(
+        extractCoordinates("Work office - 123 Main St - 24.12345,45.67890"),
+      ).toEqual({
+        lat: 24.12345,
+        lng: 45.67890,
+      });
+    });
+
+    it("handles whitespace around coords", () => {
+      expect(extractCoordinates("  24.12345 , 45.67890  ")).toEqual({
+        lat: 24.12345,
+        lng: 45.67890,
+      });
+    });
+
+    it("returns null for malformed strings", () => {
+      expect(extractCoordinates("not-a-coordinate")).toBeNull();
+      expect(extractCoordinates("24.123,abc")).toBeNull();
+      expect(extractCoordinates("")).toBeNull();
+    });
+  });
+
+  describe("calculateHaversineDistance", () => {
+    it("measures distance correctly between two points", () => {
+      // Riyadh coordinates (approx) to Dammam coordinates (approx)
+      // Riyadh: 24.7136, 46.6753
+      // Dammam: 26.4207, 50.0888
+      // Expected distance is roughly ~380 km
+      const distance = calculateHaversineDistance(
+        24.7136,
+        46.6753,
+        26.4207,
+        50.0888,
+      );
+      expect(distance).toBeGreaterThan(370);
+      expect(distance).toBeLessThan(400);
+    });
+
+    it("returns 0 for the same point", () => {
+      expect(calculateHaversineDistance(24.7, 46.6, 24.7, 46.6)).toBe(0);
+    });
+  });
+
+  describe("geocodeTextAddress", () => {
+    it("returns coordinates on a successful Nominatim response", async () => {
+      const mockFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => [
+          {
+            lat: "9.9674277",
+            lon: "76.2454436",
+            display_name: "Kochi, Kerala, India",
+          },
+        ],
+      } as Response);
+
+      const result = await geocodeTextAddress("Kochi");
+      expect(result).toEqual({ lat: 9.9674277, lng: 76.2454436 });
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://nominatim.openstreetmap.org/search?q=Kochi&format=json&limit=1",
+        {
+          headers: {
+            "User-Agent": "WCRM-Delivery-App/1.0",
+          },
+        }
+      );
+      mockFetch.mockRestore();
+    });
+
+    it("returns null for empty array or no results", async () => {
+      const mockFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => [],
+      } as Response);
+
+      const result = await geocodeTextAddress("Unknown Place");
+      expect(result).toBeNull();
+      mockFetch.mockRestore();
+    });
+
+    it("returns null on fetch HTTP error", async () => {
+      const mockFetch = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+        ok: false,
+        status: 500,
+      } as Response);
+
+      const result = await geocodeTextAddress("Kochi");
+      expect(result).toBeNull();
+      mockFetch.mockRestore();
+    });
+
+    it("returns null on fetch network exception", async () => {
+      const mockFetch = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network Error"));
+
+      const result = await geocodeTextAddress("Kochi");
+      expect(result).toBeNull();
+      mockFetch.mockRestore();
+    });
+
+    it("returns null for empty address text", async () => {
+      const result = await geocodeTextAddress("   ");
+      expect(result).toBeNull();
+    });
   });
 });
