@@ -35,7 +35,7 @@ export default function PrivacyPolicyPage() {
           <section className="space-y-2">
             <h2 className="text-lg font-semibold text-white">1. Introduction</h2>
             <p>
-              Welcome to our Privacy Policy. This service ("the CRM Application") is hosted by the organization on their own infrastructure using a self-hostable template. We respect your privacy and are committed to protecting any personal data processed through our application.
+              Welcome to our Privacy Policy. This service (&quot;the CRM Application&quot;) is hosted by the organization on their own infrastructure using a self-hostable template. We respect your privacy and are committed to protecting any personal data processed through our application.
             </p>
           </section>
 
@@ -47,7 +47,7 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc list-inside space-y-1 pl-4 text-slate-400">
               <li>Customer contact information (such as names, phone numbers, and optional email addresses).</li>
               <li>Chat history, message contents, and statuses (sent, delivered, read, etc.) of conversations with your phone number.</li>
-              <li>Metadata from WhatsApp webhooks sent by Meta's servers.</li>
+              <li>Metadata from WhatsApp webhooks sent by Meta&apos;s servers.</li>
               <li>CRM user profiles (names, emails, and roles) of employees using the system.</li>
             </ul>
           </section>
@@ -58,7 +58,7 @@ export default function PrivacyPolicyPage() {
               We process the collected data solely to:
             </p>
             <ul className="list-disc list-inside space-y-1 pl-4 text-slate-400">
-              <li>Provide the CRM platform's features, including shared inbox, contact management, sales pipeline, and message synchronization.</li>
+              <li>Provide the CRM platform&apos;s features, including shared inbox, contact management, sales pipeline, and message synchronization.</li>
               <li>Execute automated flows and message bots configured by system administrators.</li>
               <li>Log activities for audit and security tracking purposes.</li>
             </ul>
@@ -67,7 +67,7 @@ export default function PrivacyPolicyPage() {
           <section className="space-y-2">
             <h2 className="text-lg font-semibold text-white">4. Data Sharing & Third-Party Services</h2>
             <p>
-              Our application communicates directly with the **Meta WhatsApp Cloud API** to transmit messages. The data processed through WhatsApp is subject to Meta's privacy policies. We do not sell, rent, or trade your data or your customers' data to any third-party marketing services.
+              Our application communicates directly with the **Meta WhatsApp Cloud API** to transmit messages. The data processed through WhatsApp is subject to Meta&apos;s privacy policies. We do not sell, rent, or trade your data or your customers&apos; data to any third-party marketing services.
             </p>
           </section>
 
@@ -89,7 +89,7 @@ export default function PrivacyPolicyPage() {
 
       <div className="max-w-3xl mx-auto w-full text-center border-t border-slate-800 pt-8 mt-12">
         <p className="text-xs text-slate-500">
-          Powered by wacrm Template. All database data is owned and stored on the host's private infrastructure.
+          Powered by wacrm Template. All database data is owned and stored on the host&apos;s private infrastructure.
         </p>
       </div>
     </div>
