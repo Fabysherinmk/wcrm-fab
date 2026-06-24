@@ -753,17 +753,16 @@ async function advanceFromNodeKey(
       if (typeof customerLocStr === "string" && customerLocStr.length > 0 && outlets.length > 0) {
         let coords = extractCoordinates(customerLocStr);
         if (!coords) {
-          if (
-            customerLocStr.includes("google.com/maps") ||
-            customerLocStr.includes("maps.google") ||
-            customerLocStr.includes("maps.app.goo.gl") ||
-            customerLocStr.includes("goo.gl/maps")
-          ) {
-            coords = await extractCoordinatesFromGoogleMapsUrl(customerLocStr);
+          const mapsUrl = extractGoogleMapsUrl(customerLocStr);
+          if (mapsUrl) {
+            coords = await extractCoordinatesFromGoogleMapsUrl(mapsUrl);
           }
         }
         if (!coords) {
-          coords = await geocodeTextAddress(customerLocStr);
+          const cleanText = cleanAddressText(customerLocStr);
+          if (cleanText) {
+            coords = await geocodeTextAddress(cleanText);
+          }
         }
 
         if (coords) {
@@ -1312,5 +1311,33 @@ export async function extractCoordinatesFromGoogleMapsUrl(urlStr: string): Promi
     return null;
   }
 }
+
+export function extractGoogleMapsUrl(text: string): string | null {
+  if (!text) return null;
+  const match = text.match(/https?:\/\/[^\s]+/gi);
+  if (match) {
+    for (const url of match) {
+      if (
+        url.includes("google.com/maps") ||
+        url.includes("maps.google") ||
+        url.includes("maps.app.goo.gl") ||
+        url.includes("goo.gl/maps")
+      ) {
+        return url.replace(/[.,;:"')\]]+$/, "");
+      }
+    }
+  }
+  return null;
+}
+
+export function cleanAddressText(address: string): string {
+  if (!address) return "";
+  let cleaned = address.replace(/https?:\/\/\S+/gi, "");
+  const lines = cleaned.split("\n");
+  cleaned = lines[0] || "";
+  cleaned = cleaned.trim().replace(/^[,.\s-]+|[,.\s-]+$/g, "");
+  return cleaned;
+}
+
 
 

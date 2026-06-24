@@ -10,6 +10,8 @@ import {
   calculateHaversineDistance,
   geocodeTextAddress,
   extractCoordinatesFromGoogleMapsUrl,
+  extractGoogleMapsUrl,
+  cleanAddressText,
 } from "./engine";
 
 describe("matchReplyId", () => {
@@ -460,6 +462,40 @@ describe("nearest_outlet helpers", () => {
     it("returns null for non-URL strings or empty inputs", async () => {
       expect(await extractCoordinatesFromGoogleMapsUrl("")).toBeNull();
       expect(await extractCoordinatesFromGoogleMapsUrl("   ")).toBeNull();
+    });
+  });
+
+  describe("extractGoogleMapsUrl", () => {
+    it("extracts a Google Maps URL from mixed text", () => {
+      const text = "Meet here: https://maps.app.goo.gl/shortId. Let me know.";
+      expect(extractGoogleMapsUrl(text)).toBe("https://maps.app.goo.gl/shortId");
+    });
+
+    it("ignores non-Google website links", () => {
+      const text = "Visit http://example.com/info for details.";
+      expect(extractGoogleMapsUrl(text)).toBeNull();
+    });
+
+    it("handles no links or empty strings", () => {
+      expect(extractGoogleMapsUrl("just some normal text")).toBeNull();
+      expect(extractGoogleMapsUrl("")).toBeNull();
+    });
+  });
+
+  describe("cleanAddressText", () => {
+    it("removes website URLs and takes the first line", () => {
+      const input = "Sahrdaya College of Engineering and Technology\nhttp://www.sahrdaya.ac.in/";
+      expect(cleanAddressText(input)).toBe("Sahrdaya College of Engineering and Technology");
+    });
+
+    it("trims trailing and leading spaces/punctuation", () => {
+      const input = ",  Thrissur, Kerala  -  ";
+      expect(cleanAddressText(input)).toBe("Thrissur, Kerala");
+    });
+
+    it("returns empty string for empty input", () => {
+      expect(cleanAddressText("")).toBe("");
+      expect(cleanAddressText("   ")).toBe("");
     });
   });
 });
