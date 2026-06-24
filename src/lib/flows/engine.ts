@@ -758,12 +758,6 @@ async function advanceFromNodeKey(
             coords = await extractCoordinatesFromGoogleMapsUrl(mapsUrl);
           }
         }
-        if (!coords) {
-          const cleanText = cleanAddressText(customerLocStr);
-          if (cleanText) {
-            coords = await geocodeTextAddress(cleanText);
-          }
-        }
 
         if (coords) {
           let nearestOutlet = outlets[0];
@@ -1043,12 +1037,6 @@ async function handleReplyForActiveRun(
           const mapsUrl = extractGoogleMapsUrl(captured);
           if (mapsUrl) {
             coords = await extractCoordinatesFromGoogleMapsUrl(mapsUrl);
-          }
-        }
-        if (!coords) {
-          const cleanText = cleanAddressText(captured);
-          if (cleanText) {
-            coords = await geocodeTextAddress(cleanText);
           }
         }
         if (!coords) {
