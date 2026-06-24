@@ -1031,26 +1031,51 @@ async function handleReplyForActiveRun(
     const cfg = currentNode.config as unknown as CollectInputNodeConfig;
     const captured = message.text.trim();
     if (captured.length > 0 && cfg.var_key) {
-      // Persist captured value + reset reprompt count atomically.
-      const newVars = { ...run.vars, [cfg.var_key]: captured };
-      const { error: capErr } = await db
-        .from("flow_runs")
-        .update({
-          vars: newVars,
-          reprompt_count: 0,
-        })
-        .eq("id", run.id);
-      if (!capErr) {
-        // Mirror the UPDATE in-memory so downstream interpolation in
-        // the advance loop sees the captured var without us having to
-        // re-SELECT the whole row.
-        run.vars = newVars;
-        run.reprompt_count = 0;
-        await logEvent(db, run.id, "node_entered", currentNode.node_key, {
-          captured_key: cfg.var_key,
-          captured_length: captured.length,
-        });
-        matched = cfg.next_node_key;
+      let isValid = true;
+
+      // If the next node is nearest_outlet, validate that the input can be resolved to coordinates
+      const nextNode = cfg.next_node_key ? nodes.get(cfg.next_node_key) : null;
+      if (nextNode && nextNode.node_type === "nearest_outlet") {
+        let coords = extractCoordinates(captured);
+        if (!coords) {
+          const mapsUrl = extractGoogleMapsUrl(captured);
+          if (mapsUrl) {
+            coords = await extractCoordinatesFromGoogleMapsUrl(mapsUrl);
+          }
+        }
+        if (!coords) {
+          const cleanText = cleanAddressText(captured);
+          if (cleanText) {
+            coords = await geocodeTextAddress(cleanText);
+          }
+        }
+        if (!coords) {
+          isValid = false; // Cannot resolve coordinates
+        }
+      }
+
+      if (isValid) {
+        // Persist captured value + reset reprompt count atomically.
+        const newVars = { ...run.vars, [cfg.var_key]: captured };
+        const { error: capErr } = await db
+          .from("flow_runs")
+          .update({
+            vars: newVars,
+            reprompt_count: 0,
+          })
+          .eq("id", run.id);
+        if (!capErr) {
+          // Mirror the UPDATE in-memory so downstream interpolation in
+          // the advance loop sees the captured var without us having to
+          // re-SELECT the whole row.
+          run.vars = newVars;
+          run.reprompt_count = 0;
+          await logEvent(db, run.id, "node_entered", currentNode.node_key, {
+            captured_key: cfg.var_key,
+            captured_length: captured.length,
+          });
+          matched = cfg.next_node_key;
+        }
       }
     }
   }
