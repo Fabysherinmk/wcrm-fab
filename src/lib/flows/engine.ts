@@ -1012,6 +1012,8 @@ async function handleReplyForActiveRun(
     return { consumed: true, flow_run_id: run.id, outcome: "no_match" };
   }
 
+  let isLocationValidationError = false;
+
   // Two ways a reply can advance:
   //   1. Interactive button/list tap on a send_buttons/send_list node.
   //   2. Text reply on a collect_input node — capture into vars.
@@ -1051,6 +1053,7 @@ async function handleReplyForActiveRun(
         }
         if (!coords) {
           isValid = false; // Cannot resolve coordinates
+          isLocationValidationError = true;
         }
       }
 
@@ -1133,12 +1136,15 @@ async function handleReplyForActiveRun(
       // or var_key missing — rare). Re-send the prompt so they try again.
       const cfg = currentNode.config as unknown as CollectInputNodeConfig;
       try {
+        const textToSend = isLocationValidationError
+          ? "This location is invalid. Please send a valid one."
+          : interpolateVars(cfg.prompt_text, run.vars);
         await engineSendText({
           accountId: run.account_id,
-    userId: run.user_id,
+          userId: run.user_id,
           conversationId: run.conversation_id!,
           contactId: run.contact_id!,
-          text: interpolateVars(cfg.prompt_text, run.vars),
+          text: textToSend,
         });
       } catch (err) {
         await logEvent(db, run.id, "error", currentNode.node_key, {
