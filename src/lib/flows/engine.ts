@@ -431,12 +431,20 @@ async function sendListAndSuspend(
   return { outcome: "advanced", node_key: node.node_key };
 }
 
-async function executeHandoff(
+export async function executeHandoff(
   db: AdminClient,
   run: FlowRunRow,
   node: FlowNodeRow,
 ): Promise<void> {
   const cfg = node.config as { assign_to?: string; note?: string };
+
+  let assignedAgentId = cfg.assign_to;
+  if (!assignedAgentId && run.vars) {
+    const nearestOutletAgentId = run.vars["nearest_outlet_agent_id"];
+    if (typeof nearestOutletAgentId === "string" && nearestOutletAgentId) {
+      assignedAgentId = nearestOutletAgentId;
+    }
+  }
 
   // Flipping status → pending fires the DB trigger (migration 027) that
   // auto-assigns the least-loaded agent when none is set. An explicit
@@ -445,7 +453,7 @@ async function executeHandoff(
     status: "pending",
     updated_at: new Date().toISOString(),
   };
-  if (cfg.assign_to) convUpdate.assigned_agent_id = cfg.assign_to;
+  if (assignedAgentId) convUpdate.assigned_agent_id = assignedAgentId;
   if (run.conversation_id) {
     await db
       .from("conversations")
@@ -454,7 +462,7 @@ async function executeHandoff(
   }
   await logEvent(db, run.id, "handoff", node.node_key, {
     note: cfg.note ?? null,
-    assigned_to: cfg.assign_to ?? null,
+    assigned_to: assignedAgentId ?? null,
   });
   await endRun(db, run.id, "handed_off", "handoff_node");
 }
@@ -747,7 +755,26 @@ async function advanceFromNodeKey(
 
       const locationVar = cfg.customer_location_var ?? "customer_location";
       const resultVar = cfg.result_var ?? "nearest_outlet";
-      const outlets = cfg.outlets ?? [];
+
+      // 1. Fetch outlets from database
+      let outlets: Array<{ id?: string; name: string; latitude: number; longitude: number }> = [];
+      try {
+        const { data: dbOutlets, error: dbOutletsErr } = await db
+          .from("outlets")
+          .select("id, name, latitude, longitude")
+          .eq("account_id", run.account_id);
+
+        if (!dbOutletsErr && dbOutlets && dbOutlets.length > 0) {
+          outlets = dbOutlets;
+        }
+      } catch (err) {
+        console.error("[flows] failed to query global outlets:", err);
+      }
+
+      // Fallback to flow-node local outlets if DB has none
+      if (outlets.length === 0) {
+        outlets = cfg.outlets ?? [];
+      }
 
       const customerLocStr = run.vars[locationVar];
       if (typeof customerLocStr === "string" && customerLocStr.length > 0 && outlets.length > 0) {
@@ -781,13 +808,36 @@ async function advanceFromNodeKey(
             }
           }
 
-          const newVars = {
+          // 2. Query assigned agent for the nearest outlet if it's a DB outlet
+          let assignedAgentId: string | null = null;
+          if (nearestOutlet.id) {
+            try {
+              const { data: assignedAgents, error: agentErr } = await db
+                .from("profiles")
+                .select("user_id")
+                .eq("assigned_outlet_id", nearestOutlet.id)
+                .eq("account_id", run.account_id);
+
+              if (!agentErr && assignedAgents && assignedAgents.length > 0) {
+                assignedAgentId = assignedAgents[0].user_id;
+              }
+            } catch (err) {
+              console.error("[flows] failed to query assigned agent for outlet:", err);
+            }
+          }
+
+          const newVars: Record<string, any> = {
             ...run.vars,
             [resultVar]: nearestOutlet.name,
             [`${resultVar}_latitude`]: nearestOutlet.latitude,
             [`${resultVar}_longitude`]: nearestOutlet.longitude,
             [`${resultVar}_distance_km`]: parseFloat(minDistance.toFixed(2)),
           };
+
+          if (assignedAgentId) {
+            newVars[`${resultVar}_agent_id`] = assignedAgentId;
+            newVars["nearest_outlet_agent_id"] = assignedAgentId;
+          }
 
           const { error: updateErr } = await db
             .from("flow_runs")
@@ -799,6 +849,7 @@ async function advanceFromNodeKey(
             await logEvent(db, run.id, "node_entered", node.node_key, {
               nearest_outlet: nearestOutlet.name,
               distance_km: parseFloat(minDistance.toFixed(2)),
+              assigned_agent_id: assignedAgentId || null,
             });
           } else {
             console.error("[flows] nearest_outlet db update failed:", updateErr.message);

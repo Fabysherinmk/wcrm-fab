@@ -12,6 +12,7 @@ import {
   extractCoordinatesFromGoogleMapsUrl,
   extractGoogleMapsUrl,
   cleanAddressText,
+  executeHandoff,
 } from "./engine";
 
 describe("matchReplyId", () => {
@@ -496,6 +497,112 @@ describe("nearest_outlet helpers", () => {
     it("returns empty string for empty input", () => {
       expect(cleanAddressText("")).toBe("");
       expect(cleanAddressText("   ")).toBe("");
+    });
+  });
+
+  describe("executeHandoff", () => {
+    it("respects explicit config assign_to over run.vars fallback", async () => {
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      });
+      const mockDb = {
+        from: vi.fn().mockReturnValue({
+          update: mockUpdate,
+          insert: vi.fn().mockReturnValue({
+            select: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        }),
+      } as any;
+
+      const run = {
+        id: "run-1",
+        conversation_id: "conv-1",
+        vars: { nearest_outlet_agent_id: "agent-fallback" },
+      } as any;
+
+      const node = {
+        node_key: "node-handoff",
+        node_type: "handoff",
+        config: { assign_to: "agent-explicit", note: "some note" },
+      } as any;
+
+      await executeHandoff(mockDb, run, node);
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "pending",
+          assigned_agent_id: "agent-explicit",
+        })
+      );
+    });
+
+    it("falls back to nearest_outlet_agent_id in run.vars if assign_to is absent", async () => {
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      });
+      const mockDb = {
+        from: vi.fn().mockReturnValue({
+          update: mockUpdate,
+          insert: vi.fn().mockReturnValue({
+            select: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        }),
+      } as any;
+
+      const run = {
+        id: "run-2",
+        conversation_id: "conv-2",
+        vars: { nearest_outlet_agent_id: "agent-fallback" },
+      } as any;
+
+      const node = {
+        node_key: "node-handoff",
+        node_type: "handoff",
+        config: { note: "some note" },
+      } as any;
+
+      await executeHandoff(mockDb, run, node);
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "pending",
+          assigned_agent_id: "agent-fallback",
+        })
+      );
+    });
+
+    it("does not set assigned_agent_id if both assign_to and fallback are absent", async () => {
+      const mockUpdate = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      });
+      const mockDb = {
+        from: vi.fn().mockReturnValue({
+          update: mockUpdate,
+          insert: vi.fn().mockReturnValue({
+            select: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        }),
+      } as any;
+
+      const run = {
+        id: "run-3",
+        conversation_id: "conv-3",
+        vars: {},
+      } as any;
+
+      const node = {
+        node_key: "node-handoff",
+        node_type: "handoff",
+        config: {},
+      } as any;
+
+      await executeHandoff(mockDb, run, node);
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          assigned_agent_id: expect.any(String),
+        })
+      );
     });
   });
 });

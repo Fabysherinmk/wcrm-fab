@@ -10,6 +10,7 @@ import {
   UsersRound,
   Coins,
   SlidersHorizontal,
+  MapPin,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useCan } from '@/hooks/use-can';
@@ -23,6 +24,7 @@ import { AppearancePanel } from '@/components/settings/appearance-panel';
 import { MembersTab } from '@/components/settings/members-tab';
 import { DealsSettings } from '@/components/settings/deals-settings';
 import { CustomFieldsSettings } from '@/components/settings/custom-fields-settings';
+import { OutletManager } from '@/components/settings/outlet-manager';
 
 const TAB_VALUES = [
   'profile',
@@ -33,6 +35,7 @@ const TAB_VALUES = [
   'deals',
   'appearance',
   'members',
+  'outlets',
 ] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
@@ -61,7 +64,8 @@ export default function SettingsPage() {
   const tab: TabValue =
     (resolved === 'whatsapp' && !canEditSettings) ||
     (resolved === 'custom-fields' && !canEditSettings) ||
-    (resolved === 'members' && !canManageMembers)
+    (resolved === 'members' && !canManageMembers) ||
+    (resolved === 'outlets' && !canManageMembers)
       ? 'profile'
       : resolved;
 
@@ -145,6 +149,15 @@ export default function SettingsPage() {
               Members
             </TabsTrigger>
           )}
+          {canManageMembers && (
+            <TabsTrigger
+              value="outlets"
+              className="data-active:text-primary text-slate-400 data-active:bg-slate-800"
+            >
+              <MapPin className="size-4" />
+              Outlets
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -182,6 +195,12 @@ export default function SettingsPage() {
         {canManageMembers && (
           <TabsContent value="members">
             <MembersTab />
+          </TabsContent>
+        )}
+
+        {canManageMembers && (
+          <TabsContent value="outlets">
+            <OutletManager />
           </TabsContent>
         )}
       </Tabs>

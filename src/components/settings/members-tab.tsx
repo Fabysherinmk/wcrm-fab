@@ -35,6 +35,7 @@ import {
   UserCog,
   UserIcon,
   UsersRound,
+  MapPin,
 } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -53,6 +54,13 @@ import { RequireRole } from '@/components/auth/require-role';
 import { useAuth } from '@/hooks/use-auth';
 import type { AccountRole } from '@/lib/auth/roles';
 import { InviteMemberDialog } from './invite-member-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Member {
   user_id: string;
@@ -61,6 +69,7 @@ interface Member {
   avatar_url: string | null;
   role: AccountRole;
   joined_at: string;
+  assigned_outlet_id?: string | null;
 }
 
 interface Invitation {
@@ -128,6 +137,7 @@ export function MembersTab() {
 
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [outlets, setOutlets] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
 
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -135,13 +145,16 @@ export function MembersTab() {
   const [pendingMemberAction, setPendingMemberAction] = useState<string | null>(
     null,
   );
+  const [updatingOutlet, setUpdatingOutlet] = useState<string | null>(null);
+
   const loadEverything = useCallback(async () => {
     try {
-      const [mres, ires] = await Promise.all([
+      const [mres, ires, ores] = await Promise.all([
         fetch('/api/account/members', { cache: 'no-store' }),
         canManageMembers
           ? fetch('/api/account/invitations', { cache: 'no-store' })
           : Promise.resolve(null),
+        fetch('/api/account/outlets', { cache: 'no-store' }),
       ]);
 
       if (!mres.ok) {
@@ -163,6 +176,11 @@ export function MembersTab() {
       } else {
         setInvitations([]);
       }
+
+      if (ores.ok) {
+        const odata = await ores.json();
+        setOutlets(odata.outlets || []);
+      }
     } catch (err) {
       console.error('[MembersTab] load error:', err);
       toast.error('Could not reach the server');
@@ -174,6 +192,35 @@ export function MembersTab() {
   useEffect(() => {
     void loadEverything();
   }, [loadEverything]);
+
+  async function handleAssignOutlet(userId: string, outletId: string | null) {
+    setUpdatingOutlet(userId);
+    try {
+      const res = await fetch(`/api/account/members/${userId}/outlet`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assigned_outlet_id: outletId }),
+      });
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        toast.error(payload.error || 'Failed to update assigned outlet');
+        return;
+      }
+
+      toast.success('Assigned outlet updated');
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.user_id === userId ? { ...m, assigned_outlet_id: outletId } : m,
+        ),
+      );
+    } catch (err) {
+      console.error('[MembersTab] assign outlet error:', err);
+      toast.error('Could not reach the server');
+    } finally {
+      setUpdatingOutlet(null);
+    }
+  }
 
   async function handleRemove() {
     if (!removingMember) return;
@@ -310,10 +357,6 @@ export function MembersTab() {
                     Joined {fmtDate(member.joined_at)}
                   </div>
 
-                  {/* Actions cluster. On mobile this is its own row
-                      below the identity block; on desktop it sits
-                      inline. Items align to the start on mobile so the
-                      role dropdown lines up under the avatar. */}
                   <div className="flex items-center gap-2 sm:gap-3">
                     {/* Role display / editor. Inline Select is admin+
                         only AND not allowed on the owner row (owner
@@ -324,6 +367,34 @@ export function MembersTab() {
                       <RoleIcon className="size-3.5" />
                       {roleMeta.label}
                     </span>
+
+                    {/* Outlet selection dropdown */}
+                    {canManageMembers && member.role !== 'owner' ? (
+                      <Select
+                        value={member.assigned_outlet_id || 'none'}
+                        onValueChange={(val) =>
+                          handleAssignOutlet(member.user_id, val === 'none' ? null : val)
+                        }
+                        disabled={updatingOutlet === member.user_id}
+                      >
+                        <SelectTrigger className="w-[140px] bg-slate-850 border-slate-700 text-white text-xs h-8">
+                          <SelectValue placeholder="No Outlet" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-700 text-white text-xs">
+                          <SelectItem value="none">No Outlet</SelectItem>
+                          {outlets.map((o) => (
+                            <SelectItem key={o.id} value={o.id}>
+                              {o.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : member.assigned_outlet_id ? (
+                      <span className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800/50 px-2.5 py-1 text-xs text-slate-300">
+                        <MapPin className="size-3 text-slate-400" />
+                        {outlets.find((o) => o.id === member.assigned_outlet_id)?.name || 'Outlet'}
+                      </span>
+                    ) : null}
 
                     {/* Remove. Admin+ only; never on the owner row;
                         never on yourself. Pre-polish styling was
