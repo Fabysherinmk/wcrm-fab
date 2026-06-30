@@ -32,12 +32,14 @@
  *     INSERT raises 23505 and the runner catches & exits.
  */
 
+import crypto from "crypto";
 import { supabaseAdmin } from "./admin-client";
 import {
   engineSendInteractiveButtons,
   engineSendInteractiveList,
   engineSendMedia,
   engineSendText,
+  engineSendCtaUrl,
 } from "./meta-send";
 import { decideFallback, resolveFallbackPolicy } from "./fallback";
 import {
@@ -359,6 +361,42 @@ async function sendButtonsAndSuspend(
   node: FlowNodeRow,
 ): Promise<{ outcome: "advanced"; node_key: string }> {
   const cfg = node.config as unknown as SendButtonsNodeConfig;
+
+  // Custom CTA URL redirection for Products menu
+  if (cfg.buttons.length === 1 && cfg.buttons[0].reply_id === "products") {
+    const siteUrl = run.vars?.site_url || "http://localhost:3000";
+    const runId = run.id;
+    const ctaUrl = `${siteUrl}/order/${runId}`;
+
+    const { whatsapp_message_id } = await engineSendCtaUrl({
+      accountId: run.account_id,
+      userId: run.user_id,
+      conversationId: run.conversation_id!,
+      contactId: run.contact_id!,
+      bodyText: cfg.text,
+      buttonLabel: cfg.buttons[0].title, // "Products"
+      url: ctaUrl,
+      footerText: cfg.footer_text,
+    });
+
+    await logEvent(db, run.id, "message_sent", node.node_key, {
+      node_type: "send_buttons",
+      whatsapp_message_id,
+    });
+    const { data: msg } = await db
+      .from("messages")
+      .select("id")
+      .eq("message_id", whatsapp_message_id)
+      .maybeSingle();
+    await db
+      .from("flow_runs")
+      .update({
+        last_prompt_message_id: (msg as { id: string } | null)?.id ?? null,
+      })
+      .eq("id", run.id);
+    return { outcome: "advanced", node_key: node.node_key };
+  }
+
   const { whatsapp_message_id } = await engineSendInteractiveButtons({
     accountId: run.account_id,
     userId: run.user_id,
@@ -1065,7 +1103,33 @@ async function handleReplyForActiveRun(
   //
   // Everything else falls through to the fallback policy below.
   let matched: string | null = null;
-  if (
+  const sendBtnsCfg = currentNode.node_type === "send_buttons" ? (currentNode.config as unknown as SendButtonsNodeConfig) : null;
+  const isCtaUrlWelcomeNode = sendBtnsCfg && sendBtnsCfg.buttons.length === 1 && sendBtnsCfg.buttons[0].reply_id === "products";
+
+  if (isCtaUrlWelcomeNode && message.kind === "text") {
+    // Treat as collect_input node for the CTA URL button
+    const captured = message.text.trim();
+    if (captured.length > 0) {
+      const varKey = "customer_location";
+      const newVars = { ...run.vars, [varKey]: captured };
+      const { error: capErr } = await db
+        .from("flow_runs")
+        .update({
+          vars: newVars,
+          reprompt_count: 0,
+        })
+        .eq("id", run.id);
+      if (!capErr) {
+        run.vars = newVars;
+        run.reprompt_count = 0;
+        await logEvent(db, run.id, "node_entered", currentNode.node_key, {
+          captured_key: varKey,
+          captured_length: captured.length,
+        });
+        matched = sendBtnsCfg.buttons[0].next_node_key;
+      }
+    }
+  } else if (
     message.kind === "interactive_reply" &&
     (currentNode.node_type === "send_buttons" ||
       currentNode.node_type === "send_list")
@@ -1222,9 +1286,11 @@ async function startNewRun(
   // INSERT — partial unique index `idx_one_active_run_per_contact`
   // catches concurrent inserts with 23505. We catch and return as
   // consumed:true (the parallel webhook handles it).
+  const runId = crypto.randomUUID();
   const { data: inserted, error: insErr } = await db
     .from("flow_runs")
     .insert({
+      id: runId,
       flow_id: flow.id,
       // Tenancy: NOT NULL post-017. The partial unique index
       // `idx_one_active_run_per_contact` is over (account_id,
@@ -1238,6 +1304,10 @@ async function startNewRun(
       conversation_id: input.conversationId,
       status: "active",
       current_node_key: flow.entry_node_id,
+      vars: {
+        run_id: runId,
+        site_url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+      },
     })
     .select("*")
     .maybeSingle();

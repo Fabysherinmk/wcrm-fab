@@ -24,6 +24,7 @@ import type {
   ConditionNodeConfig,
   HandoffNodeConfig,
   KeywordTriggerConfig,
+  NearestOutletNodeConfig,
   SendButtonsNodeConfig,
   SendListNodeConfig,
   SendMessageNodeConfig,
@@ -39,6 +40,7 @@ export type FlowTemplateNodeType =
   | "condition"
   | "set_tag"
   | "handoff"
+  | "nearest_outlet"
   | "end";
 
 export interface FlowTemplateNode {
@@ -52,6 +54,7 @@ export interface FlowTemplateNode {
     | CollectInputNodeConfig
     | ConditionNodeConfig
     | HandoffNodeConfig
+    | NearestOutletNodeConfig
     | Record<string, unknown>;
 }
 
@@ -286,6 +289,68 @@ const LEAD_CAPTURE: FlowTemplate = {
 };
 
 // ============================================================
+// 4. Al-wow boofya — restaurant ordering flow
+// ============================================================
+const AL_WOW_BOOFYA: FlowTemplate = {
+  slug: "al_wow_boofya",
+  name: "Al-wow boofya Restaurant Order Flow",
+  description:
+    "Greet customers with welcome message, offer a products button that opens a public cart selection page, capture their location, and confirm order at nearest outlet.",
+  icon: "MessageSquare",
+  trigger_type: "keyword",
+  trigger_config: {
+    keywords: ["wow"],
+    match_type: "exact",
+    case_sensitive: false,
+  },
+  entry_node_id: "start",
+  nodes: [
+    {
+      node_key: "start",
+      node_type: "start",
+      config: { next_node_key: "welcome" },
+    },
+    {
+      node_key: "welcome",
+      node_type: "send_buttons",
+      config: {
+        text: "thank you for contacting Al-wow boofya",
+        buttons: [
+          {
+            reply_id: "products",
+            title: "Products",
+            next_node_key: "find_nearest_outlet",
+          },
+        ],
+      } as SendButtonsNodeConfig,
+    },
+    {
+      node_key: "find_nearest_outlet",
+      node_type: "nearest_outlet",
+      config: {
+        customer_location_var: "customer_location",
+        result_var: "nearest_outlet",
+        outlets: [],
+        next_node_key: "confirm_order_message",
+      } as NearestOutletNodeConfig,
+    },
+    {
+      node_key: "confirm_order_message",
+      node_type: "send_message",
+      config: {
+        text: "Thank you! Your order has been confirmed at our nearest outlet: {{vars.nearest_outlet}}.\n\nOrder details:\n{{vars.order_summary}}\nAddress: {{vars.customer_address}}\nCustomizations: {{vars.customizations}}\nTotal: ₹{{vars.order_total}}\n\nWe will contact you shortly! 🍕",
+        next_node_key: "end",
+      } as SendMessageNodeConfig,
+    },
+    {
+      node_key: "end",
+      node_type: "end",
+      config: {},
+    },
+  ],
+};
+
+// ============================================================
 // Registry
 // ============================================================
 
@@ -293,6 +358,7 @@ const TEMPLATES: Record<string, FlowTemplate> = {
   welcome_menu: WELCOME_MENU,
   faq_bot: FAQ_BOT,
   lead_capture: LEAD_CAPTURE,
+  al_wow_boofya: AL_WOW_BOOFYA,
 };
 
 export function getFlowTemplate(slug: string): FlowTemplate | null {
