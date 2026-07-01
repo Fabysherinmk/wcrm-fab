@@ -1306,7 +1306,7 @@ async function startNewRun(
       current_node_key: flow.entry_node_id,
       vars: {
         run_id: runId,
-        site_url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+        site_url: process.env.NEXT_PUBLIC_SITE_URL || process.env.RENDER_EXTERNAL_URL || "http://localhost:3000",
       },
     })
     .select("*")
