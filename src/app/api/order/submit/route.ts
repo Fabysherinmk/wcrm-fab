@@ -26,8 +26,8 @@ export async function POST(request: Request) {
     if (!cart || !Array.isArray(cart) || cart.length === 0) {
       return NextResponse.json({ error: "cart items are required" }, { status: 400 });
     }
-    if (!address || !address.place || !address.roadRoute || !address.houseNumber) {
-      return NextResponse.json({ error: "complete address details are required" }, { status: 400 });
+    if (!address || typeof address !== "string" || address.trim().length === 0) {
+      return NextResponse.json({ error: "Address is required" }, { status: 400 });
     }
     if (!coords || coords.lat === null || coords.lng === null) {
       return NextResponse.json({ error: "coordinates are required" }, { status: 400 });
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       .map((item: any) => `• ${item.name} x${item.quantity}`)
       .join("\n");
 
-    const fullAddressText = `${address.houseNumber}, ${address.roadRoute}, ${address.place}`;
+    const fullAddressText = address.trim();
 
     // 3. Format location string with coords for the flow engine parser
     const locationMessageText = `${fullAddressText} - ${coords.lat},${coords.lng}`;

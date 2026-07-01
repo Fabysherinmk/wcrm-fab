@@ -155,9 +155,7 @@ function parseGoogleMapsLink(url: string): { lat: number; lng: number } | null {
 export default function OrderForm({ run, initialOutlets }: OrderFormProps) {
   const [mode, setMode] = useState<"catalog" | "checkout" | "success">("catalog");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [place, setPlace] = useState("");
-  const [roadRoute, setRoadRoute] = useState("");
-  const [houseNumber, setHouseNumber] = useState("");
+  const [address, setAddress] = useState("");
   const [googleMapsLink, setGoogleMapsLink] = useState("");
   const [customizations, setCustomizations] = useState("");
   const [coords, setCoords] = useState<{ lat: number | null; lng: number | null }>({
@@ -249,7 +247,7 @@ export default function OrderForm({ run, initialOutlets }: OrderFormProps) {
       return;
     }
 
-    if (!place || !roadRoute || !houseNumber) {
+    if (!address) {
       toast.error("Please fill in your delivery address details.");
       return;
     }
@@ -273,11 +271,7 @@ export default function OrderForm({ run, initialOutlets }: OrderFormProps) {
             price: item.price,
           })),
           total: cartTotalAmount,
-          address: {
-            place,
-            roadRoute,
-            houseNumber,
-          },
+          address: address,
           coords,
           googleMapsLink,
           customizations,
@@ -289,8 +283,13 @@ export default function OrderForm({ run, initialOutlets }: OrderFormProps) {
         throw new Error(errorJson.error ?? "Failed to submit order.");
       }
 
+      toast.success("Order placed successfully! Redirecting...");
+      
+      // Auto-redirect back to WhatsApp to close in-app browser
+      window.location.href = "whatsapp://";
+      
+      // Fallback UI
       setMode("success");
-      toast.success("Order placed successfully! Check WhatsApp.");
     } catch (err) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : "Couldn't place order.");
@@ -578,41 +577,15 @@ export default function OrderForm({ run, initialOutlets }: OrderFormProps) {
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Place / Locality
+                    Location details (House number, Road / Route, Landmark, Place)
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     required
-                    value={place}
-                    onChange={(e) => setPlace(e.target.value)}
-                    placeholder="e.g. Kakkanad, Kochi"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500/50 focus:outline-none"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Road / Route / Landmark
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={roadRoute}
-                    onChange={(e) => setRoadRoute(e.target.value)}
-                    placeholder="e.g. Near Infopark Express Highway"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500/50 focus:outline-none"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    House / Flat / Shop Number
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={houseNumber}
-                    onChange={(e) => setHouseNumber(e.target.value)}
-                    placeholder="e.g. Villa 12B, Skyline Apartments"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500/50 focus:outline-none"
+                    rows={3}
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="e.g. Villa 12B, Skyline Apartments, Near Infopark Express Highway, Kakkanad, Kochi"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500/50 focus:outline-none resize-none"
                   />
                 </div>
               </div>
