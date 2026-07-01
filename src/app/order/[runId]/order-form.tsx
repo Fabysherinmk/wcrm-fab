@@ -511,6 +511,23 @@ export default function OrderForm({ run, initialOutlets }: OrderFormProps) {
               </div>
             </div>
 
+            {/* Special Note Subsection */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-4">
+              <h2 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 uppercase tracking-wider flex items-center gap-1.5">
+                <MessageSquare className="h-4 w-4 text-emerald-600" />
+                Special Note
+              </h2>
+              <div className="space-y-1.5">
+                <textarea
+                  value={customizations}
+                  onChange={(e) => setCustomizations(e.target.value)}
+                  placeholder="e.g. Extra sugar on Mango juice, no cheese on Chicken burger, spicy sandwich..."
+                  rows={3}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500/50 focus:outline-none resize-none"
+                />
+              </div>
+            </div>
+
             {/* Location Subsection */}
             <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-4">
               <h2 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 uppercase tracking-wider flex items-center gap-1.5">
@@ -588,23 +605,6 @@ export default function OrderForm({ run, initialOutlets }: OrderFormProps) {
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500/50 focus:outline-none resize-none"
                   />
                 </div>
-              </div>
-            </div>
-
-            {/* Customizations / Feedback */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-4">
-              <h2 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 uppercase tracking-wider flex items-center gap-1.5">
-                <MessageSquare className="h-4 w-4 text-emerald-600" />
-                Customizations & Feedback
-              </h2>
-              <div className="space-y-1.5">
-                <textarea
-                  value={customizations}
-                  onChange={(e) => setCustomizations(e.target.value)}
-                  placeholder="e.g. Extra sugar on Mango juice, no cheese on Chicken burger, spicy sandwich..."
-                  rows={3}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-emerald-500/50 focus:outline-none resize-none"
-                />
               </div>
             </div>
 
